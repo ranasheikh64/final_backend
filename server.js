@@ -7,9 +7,13 @@ const connectDB = require('./src/config/db');
 const authRoutes = require('./src/routes/auth');
 const tokenRoutes = require('./src/routes/token');
 const messageRoutes = require('./src/routes/messages');
+const friendRoutes = require('./src/routes/friend')
 
 const app = express();
 const server = http.createServer(app);
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 // connect mongodb
 connectDB();
@@ -21,6 +25,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/token', tokenRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/friend',friendRoutes)
 
 // health
 app.get('/', (req, res) => res.send({ ok: true, ts: Date.now() }));
