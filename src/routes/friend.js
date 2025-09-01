@@ -10,6 +10,45 @@ const fs = require('fs');
 const User = require('../models/User');
 console.log("user model:", User);
 
+// ===== Get My Friends (accepted only) =====
+router.get('/my-friends', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Find all accepted requests where user is either sender or receiver
+    const friends = await FriendRequest.find({
+      $or: [{ senderId: userId }, { receiverId: userId }],
+      status: "accepted"
+    })
+      .populate('senderId', 'name email profileImage')
+      .populate('receiverId', 'name email profileImage')
+      .sort({ createdAt: -1 });
+
+    // Map kore friend object banabo
+    const friendList = friends.map(req => {
+      const friend =
+        req.senderId._id.toString() === userId.toString()
+          ? req.receiverId
+          : req.senderId;
+
+      return {
+        id: friend._id,
+        name: friend.name,
+        email: friend.email,
+        profileImage: friend.profileImage || null
+      };
+    });
+
+    res.json({
+      success: true,
+      count: friendList.length,
+      friends: friendList,
+    });
+  } catch (err) {
+    console.error("❌ Get my friends error:", err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 router.post('/friend-request', auth, async (req, res) => {
   try {
