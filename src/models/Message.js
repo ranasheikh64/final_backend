@@ -1,12 +1,13 @@
 const mongoose = require('mongoose');
 
-const MessageSchema = new mongoose.Schema({
-  conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
-  sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  text: { type: String },
-  type: { type: String, enum: ['text','system','media'], default: 'text' },
-  mediaUrl: { type: String },
-  createdAt: { type: Date, default: Date.now }
-});
 
-module.exports = mongoose.model('Message', MessageSchema);
+const messageSchema = new mongoose.Schema({
+    chatId: { type: String, required: true }, // chat session ID
+    senderId: { type: String, required: true },
+    receiverId: { type: String, required: true },
+    message: { type: String },
+    type: { type: String, default: 'text' }, // text, image, etc
+    createdAt: { type: Date, default: Date.now }
+});
+module.exports = mongoose.model('Message', messageSchema);
+

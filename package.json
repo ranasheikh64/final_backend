@@ -20,6 +20,7 @@
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.0",
     "multer": "^2.0.2",
+    "node-geocoder": "^4.4.1",
     "nodemailer": "^7.0.6",
     "path": "^0.12.7",
     "uploads": "^0.0.1"

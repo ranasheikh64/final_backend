@@ -6,8 +6,10 @@ const User = require('../models/User'); // tumar User model
 const { ChatTokenBuilder } = require('agora-token'); // tumi je working code e use korcho
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const NodeGeocoder = require('node-geocoder');
+const auth =require('../middleware/auth')
+const geocoder = NodeGeocoder({ provider: 'openstreetmap' }); 
 require('dotenv').config();
-
 const router = express.Router();
 
 console.log("EMAIL_USER from .env:", process.env.EMAIL_USER);
@@ -51,15 +53,41 @@ const getAgoraAppToken = () => {
 // ===========================
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).json({ error: 'Missing fields' });
+    const { name, email, password, locationName } = req.body;
 
+    // Validate required fields
+    if (!name || !email || !password || !locationName) {
+      return res.status(400).json({ error: 'Missing fields' });
+    }
+
+    // Check if email already exists
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ error: 'Email already used' });
 
+    // Hash password
     const hash = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, email, passwordHash: hash });
+
+    // 🔹 Geocode: locationName → latitude & longitude
+   const geo = await geocoder.geocode(locationName);
+
+if (!geo || geo.length === 0 || geo[0].latitude == null || geo[0].longitude == null) {
+  return res.status(400).json({ error: 'Location not found or invalid coordinates' });
+}
+
+const latitude = geo[0].latitude;
+const longitude = geo[0].longitude;
+
+
+    // 🔹 Create user with location
+    const user = await User.create({
+      name,
+      email,
+      passwordHash: hash,
+      location: {
+        type: 'Point',
+        coordinates: [Number(longitude), Number(latitude)] // [lng, lat]
+      }
+    });
 
     // JWT for frontend auth
     const jwtToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -68,24 +96,34 @@ router.post('/register', async (req, res) => {
     const chatToken = getAgoraChatToken(user._id.toString());
 
     // Create user in Agora
-    let agoraUserCreated = false;
-    try {
-      const appToken = getAgoraAppToken();
-      const ORG_NAME = process.env.ORG_NAME;
-      const APP_NAME = process.env.APP_NAME;
-      const url = `https://a61.chat.agora.io/${ORG_NAME}/${APP_NAME}/users`;
+    // Create user in Agora
+let agoraUserCreated = false;
+try {
+  const appToken = getAgoraAppToken();
+  const ORG_NAME = process.env.ORG_NAME;
+  const APP_NAME = process.env.APP_NAME;
+  const url = `https://a61.chat.agora.io/${ORG_NAME}/${APP_NAME}/users`;
 
-      await axios.post(url, { username: user._id.toString() }, {
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${appToken}` }
-      });
+  const response = await axios.post(url, { username: user._id.toString() }, {
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${appToken}` }
+  });
 
-      agoraUserCreated = true;
-    } catch (err) {
-      console.error("❌ Agora user creation failed:", err.response?.data || err.message);
-    }
+  agoraUserCreated = true;
+  console.log("✅ Agora user created successfully:", response.data); // <-- Added log
 
+} catch (err) {
+  console.error("❌ Agora user creation failed:", err.response?.data || err.message);
+}
+
+
+    // Return response
     res.json({
-      user: { id: user._id, name: user.name, email: user.email },
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        location: user.location
+      },
       jwtToken,
       chatToken,
       agoraUserCreated
@@ -96,6 +134,36 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+router.get('/suggestions', auth, async (req, res) => {
+  try {
+    const { lat, lng, range } = req.query;
+
+    if (!lat || !lng || !range) {
+      return res.status(400).json({ error: 'lat, lng, and range are required' });
+    }
+
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    const distanceInMeters = parseFloat(range) * 1000; // km → m
+
+    // 🔹 Geo query
+    const users = await User.find({
+      location: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [longitude, latitude] },
+          $maxDistance: distanceInMeters
+        }
+      }
+    }).select('name email location profileImage'); // select fields you want
+
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 
 router.get('/all-users', async (req, res) => {
