@@ -3,7 +3,6 @@ const { RtcTokenBuilder, RtcRole, RtmTokenBuilder, RtmRole } = require('agora-ac
 const auth = require('../middleware/auth');
 
 const router = express.Router();
-
 const APP_ID = process.env.AGORA_APP_ID;
 const APP_CERT = process.env.AGORA_APP_CERTIFICATE;
 const EXPIRE = parseInt(process.env.TOKEN_EXPIRE_SECONDS || "3600", 10);

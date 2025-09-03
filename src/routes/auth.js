@@ -41,14 +41,23 @@ const getAgoraChatToken = (userId) => {
 // ===========================
 // Generate Agora App Token
 // ===========================
-const getAgoraAppToken = () => {
-  const APP_ID = process.env.AGORA_APP_ID;
-  const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE;
-  const expire = parseInt(process.env.TOKEN_EXPIRE_SECONDS || '3600');
-  return ChatTokenBuilder.buildAppToken(APP_ID, APP_CERTIFICATE, expire);
-};
 
-// ===========================
+
+router.get('/agora-token', (req, res) => {
+  const { userId } = req.query;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required as a query parameter.' });
+  }
+
+  try {
+    const token = getAgoraChatToken(userId);
+    res.status(200).json({ token });
+  } catch (error) {
+    console.error("Error generating Agora token:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 // REGISTER
 // ===========================
 router.post('/register', async (req, res) => {
