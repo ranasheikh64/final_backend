@@ -41,6 +41,14 @@ const getAgoraChatToken = (userId) => {
 // ===========================
 // Generate Agora App Token
 // ===========================
+function getAgoraAppToken() {
+  const APP_ID = process.env.AGORA_APP_ID;
+  const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE;
+  const expire = parseInt(process.env.TOKEN_EXPIRE_SECONDS || '3600');
+
+  // ✅ App Token build করতে হবে
+  return ChatTokenBuilder.buildAppToken(APP_ID, APP_CERTIFICATE, expire);
+}
 
 
 router.get('/agora-token', (req, res) => {
@@ -113,12 +121,18 @@ try {
   const APP_NAME = process.env.APP_NAME;
   const url = `https://a61.chat.agora.io/${ORG_NAME}/${APP_NAME}/users`;
 
-  const response = await axios.post(url, { username: user._id.toString() }, {
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${appToken}` }
-  });
-
+  const response = await axios.post(
+    url,
+    { username: user._id.toString() },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${appToken}`
+      }
+    }
+  );
   agoraUserCreated = true;
-  console.log("✅ Agora user created successfully:", response.data); // <-- Added log
+  console.log("✅ Agora user created:", response.data);
 
 } catch (err) {
   console.error("❌ Agora user creation failed:", err.response?.data || err.message);
